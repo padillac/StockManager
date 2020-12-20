@@ -24,7 +24,7 @@ class Stock:
         self.income_statement_url = "https://finance.yahoo.com/quote/{0}/financials?p={0}".format(ticker)
         self.balance_sheet_url = "https://finance.yahoo.com/quote/{0}/balance-sheet?p={0}".format(ticker)
         self.cash_flow_url = "https://finance.yahoo.com/quote/{0}/cash-flow?p={0}".format(ticker)
-        self.current_price = None
+        self.price = None
         self.dollar_change = None
         self.percent_change = None
         self.market_cap = None
@@ -42,12 +42,13 @@ class Stock:
         self.PE_ratio = None
         self.EPS = None
         self.one_year_growth_rate = None
-        self.pe_ratio_entry_price = "N/A"
-        self.net_net_entry_price = "N/A"
-        self.price_to_book_entry_price = "N/A"
-        self.pe_ratio_entry_price = "N/A"
-        self.graham_value = "N/A"
-        self.graham_entry_price = "N/A"
+        self.pe_ratio_entry_price = None
+        self.net_net_entry_price = None
+        self.price_to_book_entry_price = None
+        self.pe_ratio_entry_price = None
+        self.pe_ratio_percent_real_value = None
+        self.graham_value = None
+        self.graham_entry_price = None
 
 
 
@@ -67,20 +68,27 @@ class Stock:
             Tot. Liabil:  ${:,}\n\
             Book Value:   ${:,}\n\
             NCAV:         ${:,}\n\
-            NCAV / share: ${:,}\n\
-            NAV / share:  ${:,}\n\
-            PE Ratio:     {}\n\
-            EPS:          {}\n\
+            NCAV / share: ${:,.2f}\n\
+            NAV / share:  ${:,.2f}\n\
+            PE Ratio:     {:,.2f}\n\
+            EPS:          {:,.2f}\n\
 \
         Analysis:\n\
-            Net-Net Valuation Entry Price: ${}\n\
-            Price to Book Entry Price:     ${}\n\
-            PE Ratio Entry Price:          ${}\n\
-            Graham Growth Value:           ${}\n\
-            Graham Growth Entry Price:     ${}\n\
+            Net-Net Valuation:\n\
+                % Real Value:    {:,.2f}%\n\
+                Entry Price:     ${:,.2f}\n\
+            Price to Book Valuation:\n\
+                % Real Value:    {:,.2f}%\n\
+                Entry Price:     ${:,.2f}\n\
+            PE Ratio Valuation:\n\
+                % Real Value:    {:,.2f}%\n\
+                Entry Price:     ${:,.2f}\n\
+            Graham Growth Formula Valuation:\n\
+                % Real Value:    {:,.2f}%\n\
+                Entry Price:     ${:,.2f}\n\
             ".format(
                 self.ticker, 
-                self.current_price, 
+                self.price, 
                 self.dollar_change, 
                 self.percent_change,
                 self.one_year_growth_rate,
@@ -95,12 +103,15 @@ class Stock:
                 self.NCAV,
                 self.NCAV_per_share,
                 self.NAV_per_share,
-                self.PE_ratio,
-                self.EPS,
+                self.PE_ratio if type(self.PE_ratio) == float else 0.0,
+                self.EPS if type(self.EPS) == float else 0.0,
+                self.net_net_percent_real_value,
                 self.net_net_entry_price,
+                self.price_to_book_percent_real_value,
                 self.price_to_book_entry_price,
-                self.pe_ratio_entry_price,
-                self.graham_value,
+                self.pe_ratio_percent_real_value if type(self.pe_ratio_percent_real_value) == float else 0.0,
+                self.pe_ratio_entry_price if type(self.pe_ratio_entry_price) == float else 0.0,
+                self.graham_percent_real_value,
                 self.graham_entry_price)
 
 
@@ -119,7 +130,7 @@ class Stock:
         driver = webdriver.Chrome(desired_capabilities=caps)
         # SCRAPE STOCK DATA
         driver.get(self.stock_url)
-        self.current_price = float(driver.find_element_by_xpath('//span[@data-reactid="50"]').text)
+        self.price = float(driver.find_element_by_xpath('//span[@data-reactid="50"]').text)
         change = driver.find_element_by_xpath('//span[@data-reactid="51"]').text.split()
         self.dollar_change, self.percent_change = float(change[0]), float(change[1].lstrip('(').rstrip('%)'))
         raw_market_cap = driver.find_element_by_xpath('//td[@data-test="MARKET_CAP-value"]').text
@@ -140,9 +151,9 @@ class Stock:
         # SCRAPE FINANCE DATA
         driver.get(self.balance_sheet_url)
         driver.find_element_by_xpath('//span[contains(text(), "Expand All")]').click()
-        time.sleep(.5)
+        time.sleep(1)
         driver.find_element_by_xpath('//span[contains(text(), "Quarterly")]').click()
-        time.sleep(.5)
+        time.sleep(1)
         table_rows = driver.find_elements_by_xpath('//div[@data-test="fin-row"]')
         self.total_assets = int(1000 * float(table_rows[0].find_elements_by_xpath('.//div[@data-test="fin-col"]')[0].text.replace(',', '')))
         self.current_assets = int(1000 * float(table_rows[1].find_elements_by_xpath('.//div[@data-test="fin-col"]')[0].text.replace(',', '')))
@@ -159,19 +170,25 @@ class Stock:
         self.NCAV = self.current_assets - self.total_liabilities
         self.NCAV_per_share = self.NCAV / self.outstanding_shares
         self.net_net_entry_price = self.NCAV_per_share * 2/3
+        self.net_net_percent_real_value = self.price / self.NCAV_per_share * 100
 
         # Price to Book Valuation
         self.NAV_per_share = self.equity / self.outstanding_shares
         self.price_to_book_entry_price = self.NAV_per_share * .8
+        self.price_to_book_percent_real_value = self.price / self.NAV_per_share * 100
 
         # Price to Earnings Ratio Valuation
         if type(self.PE_ratio) == float:
             self.target_PE_ratio = self.PE_ratio * .7
             self.pe_ratio_entry_price = self.EPS * self.target_PE_ratio
+            self.pe_ratio_percent_real_value = self.price / self.EPS * self.PE_ratio * 100
 
         # Graham Growth Formula Valuation
         self.graham_value = self.EPS * (8.5 + 2 * self.one_year_growth_rate)
         self.graham_entry_price = self.graham_value * .7
+        print("GRAHAM VALUE: ", self.graham_value)
+        self.graham_percent_real_value = self.price / self.graham_value * 100
+        print("GRAHAM PERCENT: ", self.graham_percent_real_value)
         
 
     
