@@ -126,7 +126,7 @@ class Stock:
         self.market_cap = int(float(raw_market_cap[:-1]) * NUMERIC_CHARACTERS[raw_market_cap[-1]])
         self.volume = int(driver.find_element_by_xpath('//td[@data-test="TD_VOLUME-value"]').text.replace(',', ''))
         self.avg_volume = int(driver.find_element_by_xpath('//td[@data-test="AVERAGE_VOLUME_3MONTH-value"]').text.replace(',', ''))
-        raw_pe_ratio = driver.find_element_by_xpath('//td[@data-test="PE_RATIO-value"]').text
+        raw_pe_ratio = driver.find_element_by_xpath('//td[@data-test="PE_RATIO-value"]').text.replace(',', '')
         self.PE_ratio = float(raw_pe_ratio) if raw_pe_ratio != "N/A" else "N/A"
         raw_eps = driver.find_element_by_xpath('//td[@data-test="EPS_RATIO-value"]').text
         self.EPS = float(raw_eps) if raw_eps != "N/A" else "N/A"
@@ -138,22 +138,18 @@ class Stock:
         self.one_year_growth_rate = float(driver.find_element_by_xpath('//span[contains(text(), "52-Week Change")]/../../td[2]').text[:-1])
 
         # SCRAPE FINANCE DATA
-        driver.get(self.income_statement_url)
-
         driver.get(self.balance_sheet_url)
         driver.find_element_by_xpath('//span[contains(text(), "Expand All")]').click()
-        time.sleep(.4)
+        time.sleep(.5)
         driver.find_element_by_xpath('//span[contains(text(), "Quarterly")]').click()
-        time.sleep(.4)
+        time.sleep(.5)
         table_rows = driver.find_elements_by_xpath('//div[@data-test="fin-row"]')
         self.total_assets = int(1000 * float(table_rows[0].find_elements_by_xpath('.//div[@data-test="fin-col"]')[0].text.replace(',', '')))
         self.current_assets = int(1000 * float(table_rows[1].find_elements_by_xpath('.//div[@data-test="fin-col"]')[0].text.replace(',', '')))
         self.total_liabilities = int(1000 * float(table_rows[31].find_elements_by_xpath('.//div[@data-test="fin-col"]')[0].text.replace(',', '')))
         self.equity = int(1000 * float(table_rows[50].find_elements_by_xpath('.//div[@data-test="fin-col"]')[0].text.replace(',', '')))
 
-
-        driver.get(self.cash_flow_url)
-        
+        driver.quit()
         
 
 
