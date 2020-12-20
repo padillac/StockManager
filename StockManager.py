@@ -1,6 +1,6 @@
 ### This program 
 
-## IMPORTS
+# Imports
 # from selenium import webdriver
 
 # from tqdm import tqdm
@@ -15,6 +15,7 @@ import time
 
 # import re
 
+# Local Imports
 from src.stock import Stock
 
 
@@ -25,4 +26,6 @@ from src.stock import Stock
 if __name__ == "__main__":
     print("Starting")
 
-    crwd = Stock("CRWD")
+    crwd = Stock("ASTI")
+    crwd.updateData()
+    print(crwd)
